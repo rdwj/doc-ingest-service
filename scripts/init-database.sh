@@ -9,7 +9,7 @@ echo "📊 Initializing database schema for namespace: $NAMESPACE"
 echo "============================================================"
 
 # Check if PostgreSQL is running
-if ! oc get deployment postgres-pgvector -n "$NAMESPACE" >/dev/null 2>&1; then
+if ! oc get statefulset postgres-pgvector -n "$NAMESPACE" >/dev/null 2>&1; then
     echo "❌ PostgreSQL not found in namespace $NAMESPACE"
     exit 1
 fi
