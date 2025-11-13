@@ -37,11 +37,12 @@ else
     exit 1
 fi
 
-# Create schema
+# Create schema using individual commands (heredoc doesn't work with oc exec)
 echo ""
 echo "Creating database schema..."
-oc exec "$POD_NAME" -n "$NAMESPACE" -- psql -U raguser -d ragdb <<'EOF'
--- Create document_chunks table with tsvector for full-text search
+
+# Create table
+oc exec "$POD_NAME" -n "$NAMESPACE" -- psql -U raguser -d ragdb -c "
 CREATE TABLE IF NOT EXISTS document_chunks (
     id SERIAL PRIMARY KEY,
     text TEXT NOT NULL,
@@ -50,35 +51,38 @@ CREATE TABLE IF NOT EXISTS document_chunks (
     chunk_num INTEGER NOT NULL,
     metadata JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMP DEFAULT NOW()
-);
+);" >/dev/null 2>&1
 
--- Create GIN index for fast full-text search
-CREATE INDEX IF NOT EXISTS idx_text_search_gin ON document_chunks USING GIN(text_search);
+# Create GIN index for full-text search
+oc exec "$POD_NAME" -n "$NAMESPACE" -- psql -U raguser -d ragdb -c "
+CREATE INDEX IF NOT EXISTS idx_text_search_gin ON document_chunks USING GIN(text_search);" >/dev/null 2>&1
 
--- Create index on document_uri for filtering
-CREATE INDEX IF NOT EXISTS idx_document_uri ON document_chunks(document_uri);
+# Create index on document_uri
+oc exec "$POD_NAME" -n "$NAMESPACE" -- psql -U raguser -d ragdb -c "
+CREATE INDEX IF NOT EXISTS idx_document_uri ON document_chunks(document_uri);" >/dev/null 2>&1
 
--- Create index on metadata for JSONB queries
-CREATE INDEX IF NOT EXISTS idx_metadata_gin ON document_chunks USING GIN(metadata);
+# Create index on metadata
+oc exec "$POD_NAME" -n "$NAMESPACE" -- psql -U raguser -d ragdb -c "
+CREATE INDEX IF NOT EXISTS idx_metadata_gin ON document_chunks USING GIN(metadata);" >/dev/null 2>&1
 
--- Create function to automatically update text_search on insert/update
-CREATE OR REPLACE FUNCTION document_chunks_tsvector_update() RETURNS trigger AS $$
+# Create function for tsvector auto-update
+oc exec "$POD_NAME" -n "$NAMESPACE" -- psql -U raguser -d ragdb -c "
+CREATE OR REPLACE FUNCTION document_chunks_tsvector_update() RETURNS trigger AS \$\$
 BEGIN
     NEW.text_search := to_tsvector('english', NEW.text);
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+\$\$ LANGUAGE plpgsql;" >/dev/null 2>&1
 
--- Drop trigger if exists (to avoid duplicate trigger errors)
-DROP TRIGGER IF EXISTS tsvector_update ON document_chunks;
+# Drop trigger if exists
+oc exec "$POD_NAME" -n "$NAMESPACE" -- psql -U raguser -d ragdb -c "
+DROP TRIGGER IF EXISTS tsvector_update ON document_chunks;" >/dev/null 2>&1
 
--- Create trigger to auto-update text_search
+# Create trigger
+oc exec "$POD_NAME" -n "$NAMESPACE" -- psql -U raguser -d ragdb -c "
 CREATE TRIGGER tsvector_update BEFORE INSERT OR UPDATE
 ON document_chunks FOR EACH ROW
-EXECUTE FUNCTION document_chunks_tsvector_update();
-
-SELECT 'Schema created successfully' AS status;
-EOF
+EXECUTE FUNCTION document_chunks_tsvector_update();" >/dev/null 2>&1
 
 if [ $? -eq 0 ]; then
     echo "✅ Schema created successfully"
@@ -102,7 +106,7 @@ fi
 # Show index count
 INDEX_COUNT=$(oc exec "$POD_NAME" -n "$NAMESPACE" -- psql -U raguser -d ragdb -t -c "
     SELECT COUNT(*) FROM pg_indexes WHERE tablename = 'document_chunks';
-" | tr -d ' ')
+" 2>/dev/null | tr -d ' ')
 
 echo "✅ Created $INDEX_COUNT indexes"
 
