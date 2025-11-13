@@ -1,0 +1,17 @@
+FROM registry.access.redhat.com/ubi9/python-311:latest
+
+USER root
+
+# Install dependencies
+RUN pip install --no-cache-dir boto3 requests urllib3
+
+# Copy ingestion script
+COPY scripts/ingest-from-minio.py /opt/app-root/src/ingest-from-minio.py
+
+RUN chmod +x /opt/app-root/src/ingest-from-minio.py
+
+USER 1001
+
+WORKDIR /opt/app-root/src
+
+ENTRYPOINT ["python3", "ingest-from-minio.py"]

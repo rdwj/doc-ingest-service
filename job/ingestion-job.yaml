@@ -1,0 +1,40 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: minio-ingestion
+  labels:
+    app: minio-ingestion
+spec:
+  backoffLimit: 3
+  completions: 1
+  parallelism: 1
+  template:
+    metadata:
+      labels:
+        app: minio-ingestion
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: ingestion
+        image: quay.io/wjackson/minio-ingestion-job:latest
+        envFrom:
+        - secretRef:
+            name: minio-credentials
+        env:
+        - name: INGEST_URL
+          value: "http://doc-ingest-service:8001/ingest"
+        args:
+          - "--ingest-url"
+          - "$(INGEST_URL)"
+          # Uncomment for dry-run:
+          # - "--dry-run"
+          # Uncomment to limit files:
+          # - "--limit"
+          # - "10"
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+          seccompProfile:
+            type: RuntimeDefault
+          runAsNonRoot: true
