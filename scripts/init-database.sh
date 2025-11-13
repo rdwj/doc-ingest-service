@@ -31,7 +31,7 @@ echo "✅ Got database password"
 # Port-forward to PostgreSQL
 echo ""
 echo "Setting up port-forward to PostgreSQL..."
-oc port-forward deployment/postgres-pgvector 5432:5432 -n "$NAMESPACE" >/dev/null 2>&1 &
+oc port-forward statefulset/postgres-pgvector 5432:5432 -n "$NAMESPACE" >/dev/null 2>&1 &
 PF_PID=$!
 trap "kill $PF_PID 2>/dev/null" EXIT
 
