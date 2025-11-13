@@ -14,44 +14,33 @@ if ! oc get statefulset postgres-pgvector -n "$NAMESPACE" >/dev/null 2>&1; then
     exit 1
 fi
 
-# Get database password
+# Get PostgreSQL pod name
 echo ""
-echo "Getting database credentials..."
-DB_PASSWORD=$(oc get secret postgres-pgvector-secret -n "$NAMESPACE" \
-  -o jsonpath='{.data.POSTGRES_PASSWORD}' 2>/dev/null | base64 -d)
+echo "Finding PostgreSQL pod..."
+POD_NAME=$(oc get pods -l app=postgres-pgvector -n "$NAMESPACE" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
 
-if [ -z "$DB_PASSWORD" ]; then
-    echo "❌ Could not get database password"
-    echo "   Check secret: postgres-pgvector-secret"
+if [ -z "$POD_NAME" ]; then
+    echo "❌ Could not find PostgreSQL pod"
     exit 1
 fi
 
-echo "✅ Got database password"
-
-# Port-forward to PostgreSQL
-echo ""
-echo "Setting up port-forward to PostgreSQL..."
-oc port-forward statefulset/postgres-pgvector 5432:5432 -n "$NAMESPACE" >/dev/null 2>&1 &
-PF_PID=$!
-trap "kill $PF_PID 2>/dev/null" EXIT
-
-sleep 3
+echo "✅ Found pod: $POD_NAME"
 
 # Test connection
 echo ""
 echo "Testing database connection..."
-if PGPASSWORD="$DB_PASSWORD" psql -h localhost -U raguser -d ragdb -c "SELECT 1" >/dev/null 2>&1; then
+if oc exec "$POD_NAME" -n "$NAMESPACE" -- psql -U raguser -d ragdb -c "SELECT 1" >/dev/null 2>&1; then
     echo "✅ Database connection successful"
 else
     echo "❌ Database connection failed"
-    kill $PF_PID 2>/dev/null
+    echo "   Check that PostgreSQL is running and credentials are correct"
     exit 1
 fi
 
 # Create schema
 echo ""
 echo "Creating database schema..."
-PGPASSWORD="$DB_PASSWORD" psql -h localhost -U raguser -d ragdb <<'EOF'
+oc exec "$POD_NAME" -n "$NAMESPACE" -- psql -U raguser -d ragdb <<'EOF'
 -- Create document_chunks table with tsvector for full-text search
 CREATE TABLE IF NOT EXISTS document_chunks (
     id SERIAL PRIMARY KEY,
@@ -95,32 +84,27 @@ if [ $? -eq 0 ]; then
     echo "✅ Schema created successfully"
 else
     echo "❌ Schema creation failed"
-    kill $PF_PID 2>/dev/null
     exit 1
 fi
 
 # Verify schema
 echo ""
 echo "Verifying schema..."
-RESULT=$(PGPASSWORD="$DB_PASSWORD" psql -h localhost -U raguser -d ragdb -t -c "\dt document_chunks" 2>/dev/null)
+RESULT=$(oc exec "$POD_NAME" -n "$NAMESPACE" -- psql -U raguser -d ragdb -t -c "\dt document_chunks" 2>/dev/null)
 
 if [ -n "$RESULT" ]; then
     echo "✅ Table 'document_chunks' exists"
 else
     echo "❌ Table 'document_chunks' not found"
-    kill $PF_PID 2>/dev/null
     exit 1
 fi
 
 # Show index count
-INDEX_COUNT=$(PGPASSWORD="$DB_PASSWORD" psql -h localhost -U raguser -d ragdb -t -c "
+INDEX_COUNT=$(oc exec "$POD_NAME" -n "$NAMESPACE" -- psql -U raguser -d ragdb -t -c "
     SELECT COUNT(*) FROM pg_indexes WHERE tablename = 'document_chunks';
 " | tr -d ' ')
 
 echo "✅ Created $INDEX_COUNT indexes"
-
-# Clean up
-kill $PF_PID 2>/dev/null || true
 
 echo ""
 echo "============================================================"
@@ -129,6 +113,5 @@ echo ""
 echo "The database is ready for document ingestion."
 echo ""
 echo "Next steps:"
-echo "  1. Deploy doc-ingest-service: ./scripts/deploy.sh $NAMESPACE"
-echo "  2. Test ingestion: ./scripts/test-ingest.sh $NAMESPACE"
-echo "  3. Run pipeline from data-pipeline repository"
+echo "  1. Test ingestion: ./scripts/test-ingest.sh $NAMESPACE"
+echo "  2. Run pipeline from data-pipeline repository"
