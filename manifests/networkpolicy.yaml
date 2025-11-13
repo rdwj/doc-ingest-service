@@ -1,0 +1,25 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: doc-ingest-allow-ingress
+spec:
+  podSelector:
+    matchLabels:
+      app: doc-ingest-service
+  policyTypes:
+  - Ingress
+  ingress:
+  # Allow traffic from same namespace
+  - from:
+    - podSelector: {}
+    ports:
+    - protocol: TCP
+      port: 8001
+  # Allow traffic from OpenShift router (for external access via routes)
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          network.openshift.io/policy-group: ingress
+    ports:
+    - protocol: TCP
+      port: 8001

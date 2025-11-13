@@ -1,0 +1,15 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: doc-ingest-service
+  labels:
+    app: doc-ingest-service
+spec:
+  to:
+    kind: Service
+    name: doc-ingest-service
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

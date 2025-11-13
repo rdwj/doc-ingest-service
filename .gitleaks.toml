@@ -1,0 +1,66 @@
+# Gitleaks configuration for doc-ingest-service
+# This file manages false positives for test credentials, examples, and documentation
+
+title = "Doc Ingest Service Gitleaks Config"
+
+[allowlist]
+  description = "Allowlist for test credentials and documentation examples"
+
+  # Ignore based on file paths
+  paths = [
+    # Documentation files with examples
+    '''README\.md$''',
+    '''QUICKSTART\.md$''',
+    '''docs\/.*\.md$''',
+    '''backend\/.*\/README\.md$''',
+
+    # Test fixtures and examples
+    '''\/tests?\/''',
+    '''\/test\/''',
+    '''examples\/''',
+
+    # Manifest files with placeholder secrets
+    '''manifests\/secret\.yaml$''',
+    '''backend\/postgres\/manifests\/secret\.yaml$''',
+  ]
+
+  # Ignore based on line content (test/placeholder credentials)
+  regexes = [
+    # Test database passwords (known placeholders)
+    '''CHANGE_ME_YOUR_DB_PASSWORD''',
+    '''YOUR_DB_PASSWORD_HERE''',
+    '''YOUR_ACTUAL_PASSWORD_HERE''',
+    '''ragpassword''',  # Default test password in main.py
+
+    # Generic placeholders
+    '''password.*['"]\s*['"]\s*$''',  # Empty password strings
+    '''password.*Pass123''',
+    '''password.*example''',
+    '''password.*test''',
+
+    # Documentation placeholders
+    '''# Your (private key|certificate|password|secret) here''',
+    '''<your-.*-here>''',
+    '''REPLACE_WITH_YOUR''',
+    '''YOUR_.*_HERE''',
+    '''your-api-key''',  # Generic placeholder in docs
+
+    # Environment variable examples in documentation
+    '''export POSTGRES_PASSWORD=ragpassword''',
+    '''export EMBEDDING_API_KEY=your-api-key''',
+
+    # Code comments indicating placeholders
+    '''# IMPORTANT: Replace with your actual password''',
+    '''# DO NOT commit actual credentials''',
+    '''# Change this!''',
+  ]
+
+  # Stop words to ignore (common false positives)
+  stopwords = [
+    '''example''',
+    '''sample''',
+    '''test''',
+    '''placeholder''',
+    '''TODO''',
+    '''FIXME''',
+  ]

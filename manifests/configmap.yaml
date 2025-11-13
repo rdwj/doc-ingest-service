@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: doc-ingest-service-config
+data:
+  # PostgreSQL Configuration
+  POSTGRES_HOST: "postgres-pgvector"
+  POSTGRES_PORT: "5432"
+  POSTGRES_USER: "raguser"
+  POSTGRES_DB: "ragdb"
+
+  # Text Chunking Configuration
+  CHUNK_SIZE: "800"
+  CHUNK_OVERLAP: "150"
+
+# Notes:
+# - POSTGRES_PASSWORD is in secret.yaml
+# - Adjust POSTGRES_HOST if PostgreSQL is in different namespace
+# - Uses PostgreSQL tsvector for full-text search (no external embedding API needed)

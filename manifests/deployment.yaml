@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: doc-ingest-service
+  labels:
+    app: doc-ingest-service
+    component: ingestion
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: doc-ingest-service
+  template:
+    metadata:
+      labels:
+        app: doc-ingest-service
+        component: ingestion
+    spec:
+      containers:
+      - name: doc-ingest-service
+        image: quay.io/wjackson/doc-ingest-service:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8001
+          name: http
+          protocol: TCP
+        envFrom:
+        - configMapRef:
+            name: doc-ingest-service-config
+        env:
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-pgvector-secret
+              key: POSTGRES_PASSWORD
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8001
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8001
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+
+# Notes:
+# - Image: quay.io/wjackson/doc-ingest-service:latest
+#   (Rebuild and push if you make code changes)
+# - envFrom pulls all variables from configmap and secret
+# - Health probes ensure pod is ready before receiving traffic
+# - Resource limits prevent OOM issues with large documents

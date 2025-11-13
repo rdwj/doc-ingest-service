@@ -1,0 +1,55 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+ENV/
+
+# Environment
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Claude Code
+.claude/
+
+# macOS
+.DS_Store
+
+# Project specific
+*.log
+test-data/
+.pytest_cache/
+
+# Secrets (IMPORTANT: Never commit these!)
+manifests/secret.yaml.local
+*.secret
+credentials.yaml
+
+# Private keys and certificates
+*.key
+*.pem
+*.p12
+*.pfx
+
+# Additional credential patterns
+credentials.json
+secrets.yaml
+secrets.yml
+api_keys.txt
+tokens.txt
+*_key.txt
+*_token.txt
+*_secret.txt
